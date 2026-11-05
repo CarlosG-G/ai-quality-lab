@@ -57,6 +57,7 @@ npm test            # unit + API + E2E
 npm run eval        # golden dataset; non-zero exit if a quality gate fails
 npm run eval:judge  # rerun the dataset and judge answers with Copilot CLI / Gemini
 npm run dashboard:build # build site/ from the latest evaluation report
+npm run gemini:check    # verify every configured Gemini key and model (keys shown only as key#N)
 npm start           # http://localhost:3000
 ```
 
@@ -67,10 +68,19 @@ The deterministic evaluator defaults to the offline mock. `npm run eval:judge` u
 1. Sign in to [Google AI Studio](https://aistudio.google.com/) and open [API keys](https://aistudio.google.com/apikey).
 2. Create a key for a project eligible for Gemini API free-tier access. New keys are authorization keys by default. Free-tier model access and quotas vary; check Google's [current pricing and free-tier table](https://ai.google.dev/gemini-api/docs/pricing).
 3. Copy `.env.example` to `.env` and set `GEMINI_API_KEY=your-key` in `.env`. Do not paste the key into source files, commits, issues or chat. `.env` is ignored by Git; `.env.example` contains no secret.
-4. Run `npm run eval:judge`. Copilot is tried first; the Gemini key is only used if Copilot fails.
+4. Run `npm run gemini:check` to confirm the key works, then `npm run eval:judge`. Copilot is tried first; the Gemini key is only used if Copilot fails. Set `JUDGE_PROVIDER=gemini` to test the Gemini judge directly.
 5. To enable fallback on the public GitHub Actions workflow, add the key as a repository secret named `GEMINI_API_KEY` under **Settings → Secrets and variables → Actions**. The secret is not part of the public repository or downloadable files. Copilot CLI must also be allowed for the account or organization; if both providers are unavailable, the dashboard job fails explicitly.
 
 The Gemini free tier may use submitted content to improve Google's products. This project sends only fictional product and support data, but do not use the free tier with private or confidential data.
+
+The shared Gemini client ([`src/providers/gemini-client.ts`](src/providers/gemini-client.ts)) is built for free-tier limits:
+
+- **Key rotation.** `GEMINI_API_KEYS="key1,key2"` moves to the next key when one runs out of quota or is rejected.
+- **Model fallback.** `GEMINI_MODELS` / `GEMINI_JUDGE_MODELS` list models in order; overloaded (503) or missing models are skipped.
+- **Rate-limit aware.** It honours Gemini's `RetryInfo` delay, parks a rate-limited model/key pair for later requests, and fails fast when the daily quota is exhausted instead of waiting.
+- **Safe output.** Safety blocks fail immediately, thinking parts are dropped, the judge uses a JSON response schema, and keys travel only in the `x-goog-api-key` header, never in URLs, logs or errors.
+
+Free-tier quotas are small (for example 20 requests per day per model), so one live `eval` plus judge run can use most of a key's daily budget. If a provider fails mid-run, the evaluator stops with exit code 2 and keeps the previous report.
 
 Thresholds live in [`evals/thresholds.json`](evals/thresholds.json). The gates require at least 95% overall case pass rate, 95% top-1 source accuracy, 95% answer-fact rate, 100% refusal accuracy and 90% judge pass rate. A judge case passes with correctness, groundedness and relevance scores of at least 4/5, and helpfulness of at least 3/5. Judge output is an additional signal, not ground truth.
 
@@ -81,6 +91,7 @@ To run the chatbot against Gemini, set these values in `.env`:
 ```bash
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=your-key
+# optional: GEMINI_API_KEYS=key1,key2 and GEMINI_MODELS=gemini-3.8-flash,gemini-3.6-flash
 ```
 
 Then run `npm start`. The API key setup above explains how to create and protect the key.

@@ -81,7 +81,14 @@ function matchesAny(answer: string, alternatives: string[]): boolean {
 
 const results: CaseResult[] = [];
 for (const testCase of dataset) {
-  const result = await bot.ask(testCase.question);
+  let result: Awaited<ReturnType<typeof bot.ask>>;
+  try {
+    result = await bot.ask(testCase.question);
+  } catch (error) {
+    // Provider outages are not quality findings: stop without overwriting the last good report.
+    console.error(`Provider "${provider.name}" failed on case "${testCase.id}": ${error instanceof Error ? error.message : error}`);
+    process.exit(2);
+  }
   const failures: string[] = [];
   let sourceHit: boolean | undefined;
   let answerFactsPassed: number | undefined;

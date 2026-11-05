@@ -71,25 +71,33 @@ test.describe('Copilot and Gemini judge providers', () => {
     expect(prompt).toContain('"id":"returns-window"');
   });
 
-  test('sends the Gemini key in a header and parses its JSON response', async () => {
+  test('sends the Gemini key in a header and requests schema-constrained JSON', async () => {
     let endpoint = '';
     let apiKey = '';
+    let body: Record<string, any> = {};
     const fakeFetch: typeof fetch = async (url, init) => {
       endpoint = String(url);
       apiKey = new Headers(init?.headers).get('x-goog-api-key') ?? '';
+      body = JSON.parse(String(init?.body));
       return new Response(JSON.stringify({
         candidates: [{ content: { parts: [{ text: JSON.stringify({ judgments: [judgment] }) }] } }],
+        usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 40, totalTokenCount: 160 },
       }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     };
-    const result = await new GeminiApiJudge('secret-test-key', 'gemini-test-model', fakeFetch).evaluate([item]);
+    const judge = new GeminiApiJudge({ apiKeys: ['secret-test-key'], models: ['gemini-test-model'], fetcher: fakeFetch });
+    const result = await judge.evaluate([item]);
     expect(result[0]?.id).toBe('returns-window');
     expect(endpoint).toContain('/gemini-test-model:generateContent');
     expect(endpoint).not.toContain('secret-test-key');
     expect(apiKey).toBe('secret-test-key');
+    expect(body.generationConfig.responseMimeType).toBe('application/json');
+    expect(body.generationConfig.responseSchema.properties.judgments).toBeTruthy();
+    expect(judge.model).toBe('gemini-test-model');
+    expect(judge.usage?.totalTokens).toBe(160);
   });
 
   test('fails explicitly without the Gemini fallback key', () => {
-    expect(() => new GeminiApiJudge('')).toThrow('GEMINI_API_KEY is required');
+    expect(() => new GeminiApiJudge({ apiKeys: [''] })).toThrow('GEMINI_API_KEY is required');
   });
 
   test('falls back to Gemini when Copilot is unavailable and records the provider', async () => {

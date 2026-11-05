@@ -71,7 +71,7 @@ jobs:
     env:
       LLM_PROVIDER: mock
       COPILOT_JUDGE_MODEL: fusion
-      GEMINI_JUDGE_MODEL: gemini-3.8-flash
+      GEMINI_JUDGE_MODELS: gemini-3.8-flash,gemini-3.6-flash
       GITHUB_TOKEN: ${{ github.token }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:

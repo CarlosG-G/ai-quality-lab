@@ -1,10 +1,12 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadKnowledgeBase } from '../src/retriever.ts';
+import { geminiKeysFromEnv, geminiModelsFromEnv } from '../src/providers/gemini-client.ts';
 import {
   CopilotCliJudge,
   CopilotFirstJudge,
   GeminiApiJudge,
+  type JudgeClient,
   type JudgeItem,
 } from './judge.ts';
 
@@ -106,12 +108,25 @@ const items: JudgeItem[] = dataset.map((testCase) => {
   };
 });
 
-const copilot = new CopilotCliJudge(process.env.COPILOT_JUDGE_MODEL ?? 'fusion');
-const geminiKey = process.env.GEMINI_API_KEY ?? '';
-const gemini = geminiKey
-  ? new GeminiApiJudge(geminiKey, process.env.GEMINI_JUDGE_MODEL ?? 'gemini-3.8-flash')
+const geminiKeys = geminiKeysFromEnv(process.env);
+const gemini = geminiKeys.length
+  ? new GeminiApiJudge({
+    apiKeys: geminiKeys,
+    models: geminiModelsFromEnv(process.env, 'GEMINI_JUDGE_MODELS', 'GEMINI_JUDGE_MODEL'),
+  })
   : undefined;
-const judge = new CopilotFirstJudge(copilot, gemini);
+const judgeMode = (process.env.JUDGE_PROVIDER ?? 'auto').toLowerCase();
+let judge: JudgeClient;
+if (judgeMode === 'gemini') {
+  if (!gemini) throw new Error('JUDGE_PROVIDER=gemini requires GEMINI_API_KEY or GEMINI_API_KEYS');
+  judge = gemini;
+} else if (judgeMode === 'copilot') {
+  judge = new CopilotCliJudge(process.env.COPILOT_JUDGE_MODEL ?? 'fusion');
+} else if (judgeMode === 'auto') {
+  judge = new CopilotFirstJudge(new CopilotCliJudge(process.env.COPILOT_JUDGE_MODEL ?? 'fusion'), gemini);
+} else {
+  throw new Error(`Unknown JUDGE_PROVIDER "${judgeMode}". Use "auto", "copilot" or "gemini".`);
+}
 const judgments = await judge.evaluate(items);
 const dimensions = ['correctness', 'groundedness', 'relevance', 'helpfulness'] as const;
 const averageScores = Object.fromEntries(dimensions.map((dimension) => [
@@ -131,6 +146,7 @@ const judgeReport = {
   passedGate: passRate >= minJudgePassRate,
   passCriteria: 'correctness >= 4, groundedness >= 4, relevance >= 4, helpfulness >= 3 (each scored 1-5)',
   averageScores,
+  ...(judge.usage ? { usage: judge.usage } : {}),
   cases: judgments,
 };
 
@@ -178,6 +194,7 @@ writeFileSync(resolve(reportDir, 'ai-judge.md'), markdown);
 console.log(`\nAI judge — ${judge.provider} (${judge.model})`);
 console.log(`Cases passed: ${passed}/${judgments.length} (${(passRate * 100).toFixed(1)}%)`);
 console.log('Average scores (1-5):', averageScores);
+if (judge.usage) console.log(`Tokens: ${judge.usage.promptTokens} in / ${judge.usage.outputTokens} out`);
 console.log(`Gate: ${judgeReport.passedGate ? 'PASS' : 'FAIL'} (minimum ${(minJudgePassRate * 100).toFixed(1)}%)`);
 console.log('Reports: reports/ai-judge.md and reports/evaluation.json');
 

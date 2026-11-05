@@ -17,6 +17,7 @@
     "eval": "node --env-file-if-exists=.env evals/run.ts",
     "eval:judge": "npm run eval && node --env-file-if-exists=.env evals/judge-run.ts",
     "dashboard:build": "node --env-file-if-exists=.env scripts/build-dashboard.ts",
+  "gemini:check": "node --env-file-if-exists=.env scripts/gemini-check.ts",
     "report": "playwright show-report"
   },
   "license": "MIT",
