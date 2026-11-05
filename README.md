@@ -36,7 +36,7 @@ flowchart LR
 | Unit | Retrieval ranking, guardrails, bot logic (the model is never called for refused questions) | [`tests/unit`](tests/unit) |
 | API contract | Status codes, payload shape, input validation, 413/405/404, security headers | [`tests/api`](tests/api) |
 | End-to-end | Real browser chat flows, suggestion chips, multi-turn, injection refusal, XSS safety | [`tests/e2e`](tests/e2e) |
-| Evals *(next)* | Answer correctness, groundedness and refusals on a golden dataset, gated in CI | `evals/` |
+| Evals | 17 golden cases check top-1 sources, expected answer facts and safe refusals; independent quality thresholds gate CI | [`evals`](evals) |
 
 Design choices:
 
@@ -44,6 +44,7 @@ Design choices:
 - **Provider abstraction.** Tests and evals run against the same `LlmProvider` interface, so the same suite can check a mock, GitHub Models or any other backend.
 - **Deterministic by default.** CI never depends on a paid API or a flaky network call.
 - **Page Object Model** for the UI tests ([`chat.page.ts`](tests/e2e/chat.page.ts)), so tests read as user intent.
+- **Golden-dataset evals** produce a Markdown/JSON report with case-level failures and source, answer-fact, refusal and overall pass rates.
 
 ## Quick start
 
@@ -51,8 +52,13 @@ Design choices:
 npm ci
 npx playwright install chromium
 npm test            # unit + API + E2E
+npm run eval        # golden dataset; non-zero exit if a quality gate fails
 npm start           # http://localhost:3000
 ```
+
+The evaluator uses the same provider abstraction as the app. It defaults to the offline mock so local runs and CI are deterministic. To evaluate the live GitHub Models provider, set `EVAL_PROVIDER=github-models` and `GITHUB_TOKEN`; live answers are judged against explicit facts in `evals/dataset.json`, not an LLM judge. Reports are written to `reports/evaluation.md` and `reports/evaluation.json` (and uploaded by CI).
+
+Thresholds live in [`evals/thresholds.json`](evals/thresholds.json). The current gates require at least 95% overall case pass rate, 95% top-1 source accuracy, 95% answer-fact rate and 100% refusal accuracy. They can be raised only when the dataset and expected behavior justify it.
 
 Run against a real model (free with GitHub Models):
 
@@ -64,7 +70,7 @@ LLM_PROVIDER=github-models GITHUB_TOKEN=<token> npm start
 ## Roadmap
 
 - [x] **Step 1:** ShopBot (RAG + guardrails), unit, API and E2E tests, CI
-- [ ] **Step 2:** Eval harness with golden dataset, metrics and CI quality gate
+- [x] **Step 2:** Eval harness with golden dataset, metrics and CI quality gate
 - [ ] **Step 3:** LLM-as-a-judge (GitHub Models) and a published quality dashboard
 - [ ] **Step 4:** AI for testing: test generation from user stories and AI failure triage
 

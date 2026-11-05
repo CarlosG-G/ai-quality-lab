@@ -14,6 +14,7 @@
     "test:unit": "playwright test --project=unit",
     "test:api": "playwright test --project=api",
     "test:e2e": "playwright test --project=e2e",
+    "eval": "node evals/run.ts",
     "report": "playwright show-report"
   },
   "license": "MIT",

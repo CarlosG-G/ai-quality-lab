@@ -33,6 +33,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Run golden-dataset evaluations
+        run: npm run eval
+
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
@@ -44,5 +47,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            reports/
           retention-days: 14

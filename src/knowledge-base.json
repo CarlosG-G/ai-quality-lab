@@ -107,7 +107,7 @@
     "id": "pol-warranty",
     "type": "policy",
     "title": "Warranty and repairs",
-    "tags": ["warranty", "repair", "broken", "defect", "guarantee"],
+    "tags": ["warranty", "repair", "broken", "broke", "headphones", "not working", "faulty", "damaged", "defect", "guarantee"],
     "text": "Every product includes a manufacturer warranty (1 to 3 years depending on the product). To open a repair, contact support with your order number. Accidental damage is not covered."
   },
   {
@@ -121,7 +121,7 @@
     "id": "pol-support",
     "type": "policy",
     "title": "Customer support hours",
-    "tags": ["support", "contact", "help", "hours", "phone", "email"],
+    "tags": ["support", "contact", "help", "hours", "open", "opening", "availability", "available", "phone", "email"],
     "text": "Customer support is available Monday to Friday, 9:00 to 18:00 CET, by chat or at support@nimbus.example."
   }
 ]

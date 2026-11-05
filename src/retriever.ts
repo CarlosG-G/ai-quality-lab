@@ -29,6 +29,19 @@ export function loadKnowledgeBase(): Doc[] {
   return JSON.parse(readFileSync(url, 'utf8')) as Doc[];
 }
 
+function expandIntent(query: string): string[] {
+  const normalized = query.toLowerCase();
+  const terms: string[] = [];
+  if (/\b(open|opening|hours?|available|availability)\b/.test(normalized) &&
+      /\b(support|help|contact|service)\b/.test(normalized)) {
+    terms.push('customer support hours weekdays business');
+  }
+  if (/\b(broke|broken|break|damaged|damage|defect|faulty|repair|warranty|guarantee)\b/.test(normalized)) {
+    terms.push('warranty repair defect guarantee');
+  }
+  return terms;
+}
+
 /** Okapi BM25 over title + tags + text. Small, dependency-free and deterministic. */
 export class Retriever {
   private readonly docs: Doc[];
@@ -49,7 +62,8 @@ export class Retriever {
   }
 
   search(query: string, k = 3): Retrieved[] {
-    const q = [...new Set(tokenize(query))];
+    const expandedQuery = [query, ...expandIntent(query)].join(' ');
+    const q = [...new Set(tokenize(expandedQuery))];
     return this.docs
       .map((doc, i) => {
         const toks = this.tokens[i] ?? [];
