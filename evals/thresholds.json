@@ -2,5 +2,6 @@
   "minOverallPassRate": 0.95,
   "minSourceAccuracy": 0.95,
   "minAnswerFactRate": 0.95,
-  "minRefusalAccuracy": 1
+  "minRefusalAccuracy": 1,
+  "minJudgePassRate": 0.9
 }

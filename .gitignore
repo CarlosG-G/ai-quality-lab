@@ -3,5 +3,6 @@ playwright-report/
 test-results/
 blob-report/
 reports/
+site/
 .env
 *.log

@@ -8,13 +8,15 @@
     "node": ">=24"
   },
   "scripts": {
-    "start": "node src/server.ts",
+    "start": "node --env-file-if-exists=.env src/server.ts",
     "typecheck": "tsc --noEmit",
     "test": "playwright test",
     "test:unit": "playwright test --project=unit",
     "test:api": "playwright test --project=api",
     "test:e2e": "playwright test --project=e2e",
-    "eval": "node evals/run.ts",
+    "eval": "node --env-file-if-exists=.env evals/run.ts",
+    "eval:judge": "npm run eval && node --env-file-if-exists=.env evals/judge-run.ts",
+    "dashboard:build": "node --env-file-if-exists=.env scripts/build-dashboard.ts",
     "report": "playwright show-report"
   },
   "license": "MIT",

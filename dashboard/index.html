@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Public quality dashboard for the AI Quality Lab ShopBot evaluation suite." />
+  <title>AI Quality Lab · Evaluation dashboard</title>
+  <style>
+    :root { color-scheme: dark; --bg: #0b1120; --panel: #121c2f; --line: #25334b; --text: #e5edf8; --muted: #9aabc2; --blue: #60a5fa; --green: #34d399; --red: #fb7185; --amber: #fbbf24; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(ellipse at 10% 0%, #142442 0, var(--bg) 42%); color: var(--text); font: 15px/1.5 system-ui, -apple-system, Segoe UI, sans-serif; }
+    main { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 64px; }
+    header { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; margin-bottom: 32px; }
+    h1 { margin: 0 0 8px; font-size: clamp(2rem, 5vw, 3rem); letter-spacing: -.04em; }
+    h2 { margin: 36px 0 14px; font-size: 1.15rem; }
+    p { margin: 0; color: var(--muted); }
+    .eyebrow { color: var(--blue); font-size: .75rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    .meta { text-align: right; color: var(--muted); font-size: .85rem; }
+    .pill { display: inline-flex; padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--blue); font-size: .78rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+    .card, .panel { background: linear-gradient(145deg, #16233a, var(--panel)); border: 1px solid var(--line); border-radius: 14px; }
+    .card { padding: 18px; }
+    .card-label { color: var(--muted); font-size: .82rem; }
+    .value { display: block; margin: 6px 0 10px; font-size: 2rem; font-weight: 700; letter-spacing: -.04em; }
+    .bar { height: 6px; background: #26354d; border-radius: 99px; overflow: hidden; }
+    .bar > i { display: block; height: 100%; background: linear-gradient(90deg, #3b82f6, #34d399); border-radius: inherit; }
+    .panel { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 760px; }
+    th, td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; }
+    th { color: var(--muted); font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; }
+    tr:last-child td { border-bottom: 0; }
+    td { font-size: .87rem; }
+    .status { font-size: .75rem; font-weight: 700; }
+    .pass { color: var(--green); }
+    .fail { color: var(--red); }
+    .muted { color: var(--muted); }
+    .notice { margin-top: 20px; padding: 14px 16px; border-left: 3px solid var(--amber); border-radius: 6px; background: #fbbf2410; color: var(--muted); font-size: .85rem; }
+    footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 28px; color: var(--muted); font-size: .8rem; }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    #error { color: var(--red); }
+    @media (max-width: 600px) { main { padding-top: 28px; } header { flex-direction: column; } .meta { text-align: left; } footer { flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <div class="eyebrow">AI Quality Lab · ShopBot</div>
+        <h1>Evaluation dashboard</h1>
+        <p>Deterministic quality gates, reviewed by an independent LLM judge.</p>
+      </div>
+      <div class="meta">
+        <div id="provider" class="pill">Loading report…</div>
+        <div id="generated" style="margin-top:8px"></div>
+      </div>
+    </header>
+
+    <p id="error" role="alert"></p>
+    <section id="metrics" class="grid" aria-label="Quality metrics"></section>
+
+    <h2>LLM judge · average rubric scores</h2>
+    <section id="judge-scores" class="grid" aria-label="LLM judge scores"></section>
+
+    <h2>Golden dataset · case results</h2>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Case</th><th>Golden checks</th><th>AI judge</th><th>Top source</th><th>Judge scores</th><th>Judge note</th></tr></thead>
+        <tbody id="cases"></tbody>
+      </table>
+    </div>
+    <p class="notice">The LLM judge is a second opinion, not ground truth. The deterministic dataset and source checks remain the primary quality gate. Test data and product details are fictional.</p>
+    <footer>
+      <span>Built with Playwright, TypeScript, Copilot CLI, Gemini API and GitHub Actions.</span>
+      <a href="https://github.com/CarlosG-G/ai-quality-lab">View source on GitHub</a>
+    </footer>
+  </main>
+  <script>
+    const percent = (n) => `${(n * 100).toFixed(1)}%`;
+    const append = (parent, tag, className, text) => {
+      const el = document.createElement(tag);
+      if (className) el.className = className;
+      if (text !== undefined) el.textContent = text;
+      parent.append(el);
+      return el;
+    };
+    const card = (parent, label, value, ratio) => {
+      const el = append(parent, 'article', 'card');
+      append(el, 'div', 'card-label', label);
+      append(el, 'strong', 'value', value);
+      const bar = append(el, 'div', 'bar');
+      const fill = append(bar, 'i');
+      fill.style.width = `${Math.max(0, Math.min(100, ratio * 100))}%`;
+    };
+    fetch('./evaluation.json', { cache: 'no-store' })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Could not load evaluation report (${response.status})`);
+        return response.json();
+      })
+      .then((report) => {
+        const judge = report.judge;
+        const summary = report.summary;
+        document.getElementById('provider').textContent = `${summary.total} cases · ${judge?.model ?? 'LLM judge not run'}`;
+        document.getElementById('generated').textContent = `Generated ${new Date(report.generatedAt).toLocaleString()}`;
+        const metrics = document.getElementById('metrics');
+        card(metrics, 'Overall pass rate', percent(summary.passRate), summary.passRate);
+        card(metrics, 'Top-1 source accuracy', percent(summary.sourceAccuracy.rate), summary.sourceAccuracy.rate);
+        card(metrics, 'Answer fact rate', percent(summary.answerFactRate.rate), summary.answerFactRate.rate);
+        card(metrics, 'Safe refusal accuracy', percent(summary.refusalAccuracy.rate), summary.refusalAccuracy.rate);
+        card(metrics, 'LLM judge pass rate', judge ? percent(judge.passRate) : 'Not run', judge?.passRate ?? 0);
+        card(metrics, 'p95 response latency', `${summary.p95LatencyMs} ms`, Math.max(0, 1 - summary.p95LatencyMs / 1000));
+
+        const scorePanel = document.getElementById('judge-scores');
+        for (const [name, value] of Object.entries(judge?.averageScores ?? {})) {
+          card(scorePanel, name, `${Number(value).toFixed(2)} / 5`, Number(value) / 5);
+        }
+        if (!judge) append(scorePanel, 'p', 'muted', 'Run the Copilot CLI / Gemini judge to publish rubric scores.');
+
+        const body = document.getElementById('cases');
+        for (const item of report.cases) {
+          const row = append(body, 'tr');
+          append(row, 'td', '', item.id);
+          append(row, 'td', item.passed ? 'status pass' : 'status fail', item.passed ? 'PASS' : 'FAIL');
+          append(row, 'td', item.judge ? (item.judge.passed ? 'status pass' : 'status fail') : 'muted',
+            item.judge ? (item.judge.passed ? 'PASS' : 'FAIL') : 'Not run');
+          append(row, 'td', 'muted', item.actualSources?.[0] ?? '—');
+          const scores = item.judge
+            ? `C ${item.judge.correctness} · G ${item.judge.groundedness} · R ${item.judge.relevance} · H ${item.judge.helpfulness}`
+            : '—';
+          append(row, 'td', 'muted', scores);
+          append(row, 'td', 'muted', item.judge?.reason ?? item.failures?.join('; ') ?? '—');
+        }
+      })
+      .catch((error) => { document.getElementById('error').textContent = error.message; });
+  </script>
+</body>
+</html>

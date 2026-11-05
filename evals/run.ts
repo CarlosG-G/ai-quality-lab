@@ -22,6 +22,7 @@ interface Thresholds {
   minSourceAccuracy: number;
   minAnswerFactRate: number;
   minRefusalAccuracy: number;
+  minJudgePassRate: number;
 }
 
 interface CaseResult {
