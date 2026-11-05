@@ -1,0 +1,127 @@
+[
+  {
+    "id": "p-aero14",
+    "type": "product",
+    "title": "Aero 14 Laptop",
+    "tags": ["laptop", "notebook", "computer", "ultrabook"],
+    "text": "Lightweight 14-inch laptop with 16 GB RAM, 512 GB SSD and up to 14 hours of battery life. Weighs 1.2 kg.",
+    "price": 999,
+    "inStock": true,
+    "warrantyYears": 2
+  },
+  {
+    "id": "p-titan16",
+    "type": "product",
+    "title": "Titan 16 Pro Laptop",
+    "tags": ["laptop", "gaming", "workstation", "computer"],
+    "text": "16-inch performance laptop with 32 GB RAM, 1 TB SSD and a dedicated graphics card for gaming and video editing.",
+    "price": 1899,
+    "inStock": false,
+    "warrantyYears": 3
+  },
+  {
+    "id": "p-pulse-anc",
+    "type": "product",
+    "title": "Pulse ANC Headphones",
+    "tags": ["headphones", "audio", "noise cancelling", "wireless", "bluetooth"],
+    "text": "Over-ear wireless headphones with active noise cancelling, 30 hours of battery and USB-C fast charging.",
+    "price": 249,
+    "inStock": true,
+    "warrantyYears": 2
+  },
+  {
+    "id": "p-pulse-buds",
+    "type": "product",
+    "title": "Pulse Buds",
+    "tags": ["earbuds", "audio", "wireless", "bluetooth", "sport"],
+    "text": "True wireless earbuds, water resistant (IPX5), 8 hours of playback plus 24 hours with the charging case.",
+    "price": 129,
+    "inStock": true,
+    "warrantyYears": 1
+  },
+  {
+    "id": "p-vista27",
+    "type": "product",
+    "title": "Vista 27 4K Monitor",
+    "tags": ["monitor", "display", "screen", "4k"],
+    "text": "27-inch 4K IPS monitor with USB-C power delivery (65 W), height-adjustable stand and 99% sRGB coverage.",
+    "price": 429,
+    "inStock": true,
+    "warrantyYears": 3
+  },
+  {
+    "id": "p-keyflow",
+    "type": "product",
+    "title": "KeyFlow Mechanical Keyboard",
+    "tags": ["keyboard", "mechanical", "wireless", "accessory"],
+    "text": "Low-profile mechanical keyboard with hot-swappable switches, Bluetooth for up to 3 devices and backlight.",
+    "price": 119,
+    "inStock": true,
+    "warrantyYears": 2
+  },
+  {
+    "id": "p-glide-mouse",
+    "type": "product",
+    "title": "Glide Ergonomic Mouse",
+    "tags": ["mouse", "ergonomic", "wireless", "accessory"],
+    "text": "Ergonomic vertical wireless mouse with silent clicks and a rechargeable battery that lasts 70 days.",
+    "price": 59,
+    "inStock": false,
+    "warrantyYears": 1
+  },
+  {
+    "id": "p-dock-x",
+    "type": "product",
+    "title": "Dock X USB-C Hub",
+    "tags": ["dock", "hub", "usb-c", "adapter", "accessory"],
+    "text": "11-in-1 USB-C dock with two HDMI 4K outputs, Ethernet, SD card reader and 100 W pass-through charging.",
+    "price": 149,
+    "inStock": true,
+    "warrantyYears": 2
+  },
+  {
+    "id": "p-orbit-cam",
+    "type": "product",
+    "title": "Orbit 4K Webcam",
+    "tags": ["webcam", "camera", "video", "streaming"],
+    "text": "4K webcam with autofocus, dual noise-reducing microphones and a privacy shutter.",
+    "price": 179,
+    "inStock": true,
+    "warrantyYears": 2
+  },
+  {
+    "id": "pol-shipping",
+    "type": "policy",
+    "title": "Shipping policy",
+    "tags": ["shipping", "delivery", "send", "courier", "free shipping"],
+    "text": "Orders ship within 24 hours on business days. Standard delivery takes 2-4 business days and is free for orders over 50 EUR. Express delivery (next business day) costs 9.90 EUR."
+  },
+  {
+    "id": "pol-returns",
+    "type": "policy",
+    "title": "Returns and refunds",
+    "tags": ["return", "returns", "refund", "money back", "exchange"],
+    "text": "You can return any product within 30 days of delivery for a full refund. Items must be in their original packaging. Refunds are issued to the original payment method within 5 business days."
+  },
+  {
+    "id": "pol-warranty",
+    "type": "policy",
+    "title": "Warranty and repairs",
+    "tags": ["warranty", "repair", "broken", "defect", "guarantee"],
+    "text": "Every product includes a manufacturer warranty (1 to 3 years depending on the product). To open a repair, contact support with your order number. Accidental damage is not covered."
+  },
+  {
+    "id": "pol-payment",
+    "type": "policy",
+    "title": "Payment methods",
+    "tags": ["payment", "pay", "card", "paypal", "installments", "financing"],
+    "text": "We accept Visa, Mastercard, PayPal and bank transfer. Orders over 300 EUR can be paid in 3 interest-free installments."
+  },
+  {
+    "id": "pol-support",
+    "type": "policy",
+    "title": "Customer support hours",
+    "tags": ["support", "contact", "help", "hours", "phone", "email"],
+    "text": "Customer support is available Monday to Friday, 9:00 to 18:00 CET, by chat or at support@nimbus.example."
+  }
+]

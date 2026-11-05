@@ -1,0 +1,30 @@
+{
+  "name": "ai-quality-lab",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-augmented quality engineering: test an LLM app end to end, and use AI to test better.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "playwright test",
+    "test:unit": "playwright test --project=unit",
+    "test:api": "playwright test --project=api",
+    "test:e2e": "playwright test --project=e2e",
+    "report": "playwright show-report"
+  },
+  "license": "MIT",
+  "author": "Carlos Gonzalez",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CarlosG-G/ai-quality-lab.git"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^24.19.2",
+    "typescript": "^7.0.2"
+  }
+}

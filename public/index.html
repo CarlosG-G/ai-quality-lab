@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShopBot · Nimbus support</title>
+  <style>
+    :root { --bg: #0f172a; --card: #111c33; --muted: #94a3b8; --text: #e2e8f0; --accent: #38bdf8; --bot: #1e293b; --user: #0369a1; --warn: #f59e0b; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--text); display: grid; place-items: center; min-height: 100vh; }
+    main { width: min(720px, 100%); height: min(760px, 100vh); background: var(--card); border-radius: 16px; display: flex; flex-direction: column; box-shadow: 0 20px 60px #0008; overflow: hidden; }
+    header { padding: 16px 20px; border-bottom: 1px solid #ffffff14; display: flex; justify-content: space-between; align-items: center; }
+    header h1 { font-size: 1.1rem; margin: 0; }
+    header small { color: var(--muted); }
+    .badge { font-size: .75rem; padding: 4px 10px; border-radius: 999px; background: #38bdf822; color: var(--accent); }
+    #log { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+    .msg { max-width: 85%; padding: 10px 14px; border-radius: 14px; line-height: 1.45; white-space: pre-wrap; }
+    .user { align-self: flex-end; background: var(--user); }
+    .bot { align-self: flex-start; background: var(--bot); }
+    .bot.refused { border-left: 3px solid var(--warn); }
+    .sources { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .source { font-size: .7rem; color: var(--muted); border: 1px solid #ffffff22; border-radius: 6px; padding: 1px 6px; }
+    .suggestions { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 20px 12px; }
+    .suggestions button { background: transparent; color: var(--accent); border: 1px solid #38bdf855; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+    form { display: flex; gap: 8px; padding: 16px 20px; border-top: 1px solid #ffffff14; }
+    input { flex: 1; padding: 12px 14px; border-radius: 10px; border: 1px solid #ffffff22; background: #0b1324; color: var(--text); font-size: 1rem; }
+    button[type=submit] { padding: 0 18px; border: 0; border-radius: 10px; background: var(--accent); color: #002; font-weight: 600; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: progress; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>ShopBot</h1>
+        <small>Nimbus electronics · AI support assistant</small>
+      </div>
+      <span class="badge" data-testid="provider">connecting…</span>
+    </header>
+    <section id="log" data-testid="chat-log" aria-live="polite">
+      <div class="msg bot" data-testid="msg-bot">Hi! Ask me about our products, shipping, returns, warranty or payments.</div>
+    </section>
+    <div class="suggestions" data-testid="suggestions">
+      <button type="button">How much is the Aero 14 laptop?</button>
+      <button type="button">What is your return policy?</button>
+      <button type="button">Is the Titan 16 in stock?</button>
+    </div>
+    <form data-testid="chat-form">
+      <input name="message" data-testid="chat-input" placeholder="Type your question…" maxlength="500" autocomplete="off" aria-label="Your question" />
+      <button type="submit" data-testid="send">Send</button>
+    </form>
+  </main>
+  <script>
+    const log = document.getElementById('log');
+    const form = document.querySelector('form');
+    const input = form.elements.message;
+    const send = form.querySelector('[data-testid=send]');
+
+    fetch('/api/health').then((r) => r.json()).then((h) => {
+      document.querySelector('[data-testid=provider]').textContent = h.provider;
+    });
+
+    function add(role, text, extra = {}) {
+      const el = document.createElement('div');
+      el.className = `msg ${role}${extra.refused ? ' refused' : ''}`;
+      el.dataset.testid = `msg-${role}`;
+      el.textContent = text;
+      if (extra.sources?.length) {
+        const s = document.createElement('div');
+        s.className = 'sources';
+        for (const id of extra.sources) {
+          const chip = document.createElement('span');
+          chip.className = 'source';
+          chip.dataset.testid = 'source';
+          chip.textContent = id;
+          s.append(chip);
+        }
+        el.append(s);
+      }
+      log.append(el);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    async function ask(message) {
+      if (!message.trim()) return;
+      add('user', message);
+      input.value = '';
+      send.disabled = true;
+      try {
+        const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message }) });
+        const data = await res.json();
+        add('bot', data.answer ?? data.error ?? 'Something went wrong.', data);
+      } catch {
+        add('bot', 'Network error, please try again.', { refused: true });
+      } finally {
+        send.disabled = false;
+        input.focus();
+      }
+    }
+
+    form.addEventListener('submit', (e) => { e.preventDefault(); ask(input.value); });
+    document.querySelectorAll('.suggestions button').forEach((b) => b.addEventListener('click', () => ask(b.textContent)));
+  </script>
+</body>
+</html>
