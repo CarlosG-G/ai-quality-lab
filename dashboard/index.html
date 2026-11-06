@@ -69,6 +69,15 @@
         <tbody id="cases"></tbody>
       </table>
     </div>
+    <h2>Chaos Lab · bug detection</h2>
+    <section id="chaos-metrics" class="grid" aria-label="Chaos Lab metrics"></section>
+    <p id="chaos-status" class="muted"></p>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Bug</th><th>File</th><th>Detection</th><th>Failed checks</th><th>Autoheal</th><th>Diagnosis</th><th>Patches</th></tr></thead>
+        <tbody id="chaos-runs"></tbody>
+      </table>
+    </div>
     <p class="notice">The LLM judge is a second opinion, not ground truth. The deterministic dataset and source checks remain the primary quality gate. Test data and product details are fictional.</p>
     <footer>
       <span>Built with Playwright, TypeScript, Copilot CLI, Gemini API and GitHub Actions.</span>
@@ -132,6 +141,53 @@
         }
       })
       .catch((error) => { document.getElementById('error').textContent = error.message; });
+
+    fetch('./chaos-summary.json', { cache: 'no-store' })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Could not load Chaos Lab report (${response.status})`);
+        return response.json();
+      })
+      .then((report) => {
+        const metrics = document.getElementById('chaos-metrics');
+        const score = Number(report.mutationScore ?? 0);
+        card(metrics, 'Mutation score', percent(score), score);
+        card(metrics, 'Detected bugs', `${report.detected ?? 0} / ${report.compilable ?? 0}`, report.compilable ? report.detected / report.compilable : 0);
+        card(metrics, 'Survived suite', String(report.survived ?? 0), report.compilable ? 1 - report.survived / report.compilable : 0);
+        card(metrics, 'Mean detection time', `${report.meanDetectionMs ?? 0} ms`, Math.max(0, 1 - (report.meanDetectionMs ?? 0) / 10000));
+        const healed = (report.healedExact ?? 0) + (report.healedEquivalent ?? 0);
+        const healingRuns = report.healingRuns ?? 0;
+        card(metrics, 'AI autoheal', healingRuns ? `${healed} / ${healingRuns}` : 'Not run', healingRuns ? healed / healingRuns : 0);
+        card(metrics, 'Mean healing time', `${report.meanHealingMs ?? 0} ms`, Math.max(0, 1 - (report.meanHealingMs ?? 0) / 10000));
+        document.getElementById('chaos-status').textContent = report.runs
+          ? `${report.runs} runs · seed ${report.seed} · mode ${report.mode} · ${report.invalid} invalid mutants skipped`
+          : 'No Chaos Lab campaign yet. Run npm run chaos:campaign to generate a report.';
+
+        const body = document.getElementById('chaos-runs');
+        for (const result of report.results ?? []) {
+          const row = append(body, 'tr');
+          append(row, 'td', '', result.bug.id);
+          append(row, 'td', 'muted', result.bug.file || '—');
+          append(row, 'td', result.status === 'detected' ? 'status pass' : result.status === 'survived' ? 'status fail' : 'muted',
+            result.status.toUpperCase());
+          append(row, 'td', 'muted', result.checks.filter((check) => !check.passed).map((check) => check.name).join(', ') || '—');
+          const healing = result.healing;
+          append(row, 'td', healing?.status?.startsWith('healed-') ? 'status pass' : healing?.status === 'failed' ? 'status fail' : 'muted',
+            healing?.status ?? 'Not run');
+          append(row, 'td', 'muted', healing?.diagnosis?.join(' · ') ?? healing?.failure ?? '—');
+          const patchCell = append(row, 'td');
+          if (result.bug.patch) {
+            const injected = append(patchCell, 'details');
+            append(injected, 'summary', '', 'Injected bug');
+            append(injected, 'pre', 'muted', result.bug.patch);
+          }
+          if (healing?.patch) {
+            const healedPatch = append(patchCell, 'details');
+            append(healedPatch, 'summary', '', 'Autoheal patch');
+            append(healedPatch, 'pre', 'muted', healing.patch);
+          }
+        }
+      })
+      .catch((error) => { document.getElementById('chaos-status').textContent = error.message; });
   </script>
 </body>
 </html>

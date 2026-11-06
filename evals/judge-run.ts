@@ -1,14 +1,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { docFacts } from '../src/providers/prompt.ts';
 import { loadKnowledgeBase } from '../src/retriever.ts';
-import { geminiKeysFromEnv, geminiModelsFromEnv } from '../src/providers/gemini-client.ts';
-import {
-  CopilotCliJudge,
-  CopilotFirstJudge,
-  GeminiApiJudge,
-  type JudgeClient,
-  type JudgeItem,
-} from './judge.ts';
+import { createJudge, PASS_CRITERIA, summarizeJudgments, type JudgeItem } from './judge.ts';
 
 interface DatasetCase {
   id: string;
@@ -93,7 +87,7 @@ const items: JudgeItem[] = dataset.map((testCase) => {
   const evidence = evaluated.actualSources.map((id) => {
     const doc = docsById.get(id);
     if (!doc) throw new Error(`Evaluation report references unknown source "${id}"`);
-    return { id: doc.id, title: doc.title, text: doc.text };
+    return { id: doc.id, title: doc.title, text: docFacts(doc) };
   });
   return {
     id: testCase.id,
@@ -108,43 +102,19 @@ const items: JudgeItem[] = dataset.map((testCase) => {
   };
 });
 
-const geminiKeys = geminiKeysFromEnv(process.env);
-const gemini = geminiKeys.length
-  ? new GeminiApiJudge({
-    apiKeys: geminiKeys,
-    models: geminiModelsFromEnv(process.env, 'GEMINI_JUDGE_MODELS', 'GEMINI_JUDGE_MODEL'),
-  })
-  : undefined;
-const judgeMode = (process.env.JUDGE_PROVIDER ?? 'auto').toLowerCase();
-let judge: JudgeClient;
-if (judgeMode === 'gemini') {
-  if (!gemini) throw new Error('JUDGE_PROVIDER=gemini requires GEMINI_API_KEY or GEMINI_API_KEYS');
-  judge = gemini;
-} else if (judgeMode === 'copilot') {
-  judge = new CopilotCliJudge(process.env.COPILOT_JUDGE_MODEL ?? 'fusion');
-} else if (judgeMode === 'auto') {
-  judge = new CopilotFirstJudge(new CopilotCliJudge(process.env.COPILOT_JUDGE_MODEL ?? 'fusion'), gemini);
-} else {
-  throw new Error(`Unknown JUDGE_PROVIDER "${judgeMode}". Use "auto", "copilot" or "gemini".`);
-}
+const judge = createJudge(process.env);
 const judgments = await judge.evaluate(items);
-const dimensions = ['correctness', 'groundedness', 'relevance', 'helpfulness'] as const;
-const averageScores = Object.fromEntries(dimensions.map((dimension) => [
-  dimension,
-  Number((judgments.reduce((sum, item) => sum + item[dimension], 0) / judgments.length).toFixed(2)),
-]));
-const passed = judgments.filter((item) => item.passed).length;
-const passRate = passed / judgments.length;
+const { passed, total, passRate, averageScores } = summarizeJudgments(judgments);
 const judgeReport = {
   provider: judge.provider,
   model: judge.model,
   evaluatedAt: new Date().toISOString(),
   passed,
-  total: judgments.length,
+  total,
   passRate,
   minimumPassRate: minJudgePassRate,
   passedGate: passRate >= minJudgePassRate,
-  passCriteria: 'correctness >= 4, groundedness >= 4, relevance >= 4, helpfulness >= 3 (each scored 1-5)',
+  passCriteria: PASS_CRITERIA,
   averageScores,
   ...(judge.usage ? { usage: judge.usage } : {}),
   cases: judgments,
@@ -177,7 +147,7 @@ const markdown = [
   '',
   `- Provider: ${judge.provider} (\`${judge.model}\`)`,
   `- Evaluated: ${judgeReport.evaluatedAt}`,
-  `- Passed: **${passed}/${judgments.length} (${(passRate * 100).toFixed(1)}%)**`,
+  `- Passed: **${passed}/${total} (${(passRate * 100).toFixed(1)}%)**`,
   `- CI minimum: ${(minJudgePassRate * 100).toFixed(1)}%`,
   `- Gate: **${judgeReport.passedGate ? 'PASS' : 'FAIL'}**`,
   `- Pass rule: ${judgeReport.passCriteria}`,
@@ -192,7 +162,7 @@ const markdown = [
 writeFileSync(resolve(reportDir, 'ai-judge.md'), markdown);
 
 console.log(`\nAI judge — ${judge.provider} (${judge.model})`);
-console.log(`Cases passed: ${passed}/${judgments.length} (${(passRate * 100).toFixed(1)}%)`);
+console.log(`Cases passed: ${passed}/${total} (${(passRate * 100).toFixed(1)}%)`);
 console.log('Average scores (1-5):', averageScores);
 if (judge.usage) console.log(`Tokens: ${judge.usage.promptTokens} in / ${judge.usage.outputTokens} out`);
 console.log(`Gate: ${judgeReport.passedGate ? 'PASS' : 'FAIL'} (minimum ${(minJudgePassRate * 100).toFixed(1)}%)`);

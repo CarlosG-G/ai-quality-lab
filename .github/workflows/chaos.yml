@@ -1,0 +1,93 @@
+name: Chaos Lab
+
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: Seed for reproducible bug selection
+        required: true
+        default: 42
+        type: number
+      runs:
+        description: Number of isolated bugs to inject
+        required: true
+        default: 10
+        type: number
+      mode:
+        description: Bug source
+        required: true
+        default: mixed
+        type: choice
+        options:
+          - mixed
+          - catalog
+          - mutation
+      heal:
+        description: Ask Copilot CLI, then Gemini, to repair detected bugs
+        required: true
+        default: false
+        type: boolean
+  schedule:
+    - cron: '0 10 * * 2'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chaos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chaos:
+    name: Inject, detect and report
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CHAOS_SEED: ${{ github.event.inputs.seed || '42' }}
+      CHAOS_RUNS: ${{ github.event.inputs.runs || '10' }}
+      CHAOS_MODE: ${{ github.event.inputs.mode || 'mixed' }}
+      CHAOS_HEAL: ${{ github.event.inputs.heal || 'false' }}
+      HEAL_PROVIDER: auto
+      COPILOT_HEAL_MODEL: fusion
+      GEMINI_HEAL_MODELS: gemini-3.8-flash,gemini-3.6-flash
+    permissions:
+      contents: read
+      copilot-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Copilot CLI for autoheal
+        if: env.CHAOS_HEAL == 'true'
+        run: npm install -g @github/copilot
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run detection and autoheal campaign
+        if: env.CHAOS_HEAL == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: npm run chaos:campaign -- --seed "$CHAOS_SEED" --runs "$CHAOS_RUNS" --mode "$CHAOS_MODE" --heal
+
+      - name: Run detection-only campaign
+        if: env.CHAOS_HEAL != 'true'
+        run: npm run chaos:campaign -- --seed "$CHAOS_SEED" --runs "$CHAOS_RUNS" --mode "$CHAOS_MODE"
+
+      - name: Upload Chaos Lab reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-lab-report
+          path: |
+            reports/chaos/
+            reports/chaos-summary.json
+            reports/chaos.md
+          retention-days: 30

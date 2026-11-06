@@ -17,7 +17,10 @@
     "eval": "node --env-file-if-exists=.env evals/run.ts",
     "eval:judge": "npm run eval && node --env-file-if-exists=.env evals/judge-run.ts",
     "dashboard:build": "node --env-file-if-exists=.env scripts/build-dashboard.ts",
-  "gemini:check": "node --env-file-if-exists=.env scripts/gemini-check.ts",
+    "gemini:check": "node --env-file-if-exists=.env scripts/gemini-check.ts",
+    "chaos:inject": "node --env-file-if-exists=.env chaos/cli.ts inject",
+    "chaos:campaign": "node --env-file-if-exists=.env chaos/cli.ts campaign",
+    "chaos:heal": "node --env-file-if-exists=.env chaos/cli.ts inject --heal",
     "report": "playwright show-report"
   },
   "license": "MIT",
@@ -29,6 +32,7 @@
   "devDependencies": {
     "@playwright/test": "^1.64.1",
     "@types/node": "^24.19.2",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "typescript-api": "npm:@typescript/typescript6@^6.0.2"
   }
 }

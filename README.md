@@ -56,10 +56,39 @@ npx playwright install chromium
 npm test            # unit + API + E2E
 npm run eval        # golden dataset; non-zero exit if a quality gate fails
 npm run eval:judge  # rerun the dataset and judge answers with Copilot CLI / Gemini
+npm run chaos:inject -- --seed 42 --mode mixed # inject one isolated bug and test whether the suite catches it
+npm run chaos:campaign -- --runs 10 --seed 42 --mode mixed # measure mutation score across a reproducible campaign
 npm run dashboard:build # build site/ from the latest evaluation report
 npm run gemini:check    # verify every configured Gemini key and model (keys shown only as key#N)
 npm start           # http://localhost:3000
 ```
+
+### Chaos Lab · randomized bugs and detection
+
+Chaos Lab copies the source, unit tests and golden evaluator into a temporary sandbox. It injects bugs only into that copy, runs typecheck + unit tests + golden evaluation, then removes the sandbox. The working tree and `main` are never deliberately modified by a campaign.
+
+Two bug sources are available:
+
+- **AST mutations** use a seeded random generator to change safe TypeScript expressions (comparators, logical/arithmetic operators and numeric constants). Type-invalid mutations are discarded.
+- **Curated catalog** randomly selects realistic regressions in retrieval, prompt-injection guards and answer generation.
+
+Examples:
+
+```bash
+npm run chaos:inject -- --seed 42 --mode catalog
+npm run chaos:inject -- --seed 42 --mode mutation
+npm run chaos:campaign -- --runs 20 --seed 42 --mode mixed
+npm run chaos:heal -- --seed 42 --mode catalog
+npm run chaos:campaign -- --runs 5 --seed 42 --mode mixed --heal
+```
+
+The same seed and mode reproduce the same sequence of bugs. Reports in `reports/chaos/`, `reports/chaos-summary.json` and `reports/chaos.md` record the injected patch, failed checks, detection time and mutation score. A surviving mutant means the current checks did not expose that bug; it is reported rather than silently counted as a pass. Invalid (non-compiling) mutants are excluded from the score.
+
+The dashboard includes detection and healing metrics, diagnoses and both patches. CI runs a small isolated campaign with autoheal before publishing the dashboard. The separate **Chaos Lab** workflow can be run manually with a chosen seed, mode, run count and optional healing; it also runs weekly.
+
+Autoheal is deliberately blind: it receives only failing-check output and the current source, not the injected bug id or patch. Copilot CLI (`fusion` with the `hydrafusion` auto tier, i.e. Fusion High) is tried first with tools disabled; Gemini is the fallback. Fusion requests enable the CLI's `DYNAMIC_AUTO_TIERS` feature flag for headless compatibility and send the prompt through stdin. Set `COPILOT_FUSION_TIER` to choose another tier; if the account cannot use it, the call is retried once with the CLI default tier. The response is structured JSON with exact search-and-replace edits. Only the five listed `src/**` files are editable; tests, evaluations and configuration are checksum-protected. Each repair is followed by typecheck, unit tests and the golden evaluation, for up to three attempts. Provider startup failures stop retries immediately. Reports distinguish `healed-exact`, `healed-equivalent`, `partial`, `failed` and `not-needed`. Campaigns with `--heal` are limited to five bugs to control runtime and model usage.
+
+Set `HEAL_PROVIDER=auto|copilot|gemini` in `.env`; `auto` is the default. Gemini uses the shared key rotation and model fallback settings, so a heal can consume free-tier requests when Copilot is unavailable.
 
 The deterministic evaluator defaults to the offline mock. `npm run eval:judge` uses the Copilot CLI with the `fusion` model first. Locally, sign in with `copilot login`; GitHub Actions uses its built-in token with the `copilot-requests: write` permission. If Copilot is unavailable, the judge falls back to Gemini when `GEMINI_API_KEY` is configured. The same `.env` file can select `LLM_PROVIDER=gemini` to run the chatbot against a live Gemini model.
 
@@ -96,12 +125,31 @@ GEMINI_API_KEY=your-key
 
 Then run `npm start`. The API key setup above explains how to create and protect the key.
 
+## Testing vocabulary (ISTQB)
+
+The code and reports use standard ISTQB terms:
+
+| Term | Where it appears |
+|---|---|
+| **Test oracle** | Golden dataset expectations (`evals/dataset.json`) and the original source when judging an exact heal |
+| **Exit criteria / quality gates** | `evals/thresholds.json`; CI fails when any gate is not met |
+| **Component testing** | `tests/unit` (Playwright test runner, no browser) |
+| **System testing** | `tests/api` and `tests/e2e` against the running app |
+| **Defect (fault) seeding** | Chaos Lab injects known faults into a sandbox copy |
+| **Mutation testing** | AST mutants; a *killed* mutant is a detected fault, a *survived* mutant shows a test gap |
+| **Mutation score** | Killed mutants ? valid (compiling) mutants |
+| **Failure vs defect** | A failing check is the failure; the seeded code change is the defect |
+| **Confirmation testing** | Re-running the checks after each autoheal repair |
+| **Regression testing** | The full unit + evaluation suite re-run on every repair, not only the failing check |
+
 ## Roadmap
 
 - [x] **Step 1:** ShopBot (RAG + guardrails), unit, API and E2E tests, CI
 - [x] **Step 2:** Eval harness with golden dataset, metrics and CI quality gate
 - [x] **Step 3:** LLM-as-a-judge (Copilot CLI → Gemini fallback) and a published quality dashboard
-- [ ] **Step 4:** AI for testing: test generation from user stories and AI failure triage
+- [x] **Step 4:** Chaos Lab: reproducible bug injection, test detection and mutation-score dashboard
+- [x] **Step 5:** AI autoheal: blind diagnosis, guarded source-only patches and re-validation
+- [ ] **Step 6:** AI for testing: test generation from user stories and AI failure triage
 
 ## About
 
