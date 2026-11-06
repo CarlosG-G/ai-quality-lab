@@ -129,7 +129,7 @@ Then run `npm start`. The API key setup above explains how to create and protect
 
 ## AI testing assistant
 
-The assistant turns a structured user story into test cases and classifies a supplied test failure. It returns validated JSON; it does not write or execute generated code, close issues, or claim a root cause without cited evidence.
+The assistant turns a structured user story into test cases and classifies a supplied test failure. It returns validated JSON; it never writes or evaluates generated code, closes issues, or claims a root cause without cited evidence.
 
 ```bash
 npm run ai:testing -- generate examples/user-story.json
@@ -137,6 +137,22 @@ npm run ai:testing -- triage examples/failure-report.json
 ```
 
 Set `TESTING_AI_PROVIDER=auto` to try Copilot CLI first and Gemini second, or choose `copilot` or `gemini` explicitly. Add `GEMINI_API_KEY` to `.env` for Gemini. Generated cases must cover every acceptance criterion; triage must reference evidence IDs from the failure report.
+
+Stories with `"executionProfile": "shopbot"` can select only built-in scenario IDs. Review the generated plan before running it; execution requires `--approve` and uses the offline `MockProvider`, never arbitrary model-generated code or a live AI provider:
+
+```bash
+node --env-file-if-exists=.env evals/ai-testing-run.ts generate examples/shopbot-user-story.json > reviewed-plan.json
+# Inspect reviewed-plan.json before approving it.
+npm run ai:testing -- execute examples/shopbot-user-story.json reviewed-plan.json --approve
+```
+
+Run the curated, deterministic example used by CI without AI credentials:
+
+```bash
+npm run ai:testing:demo
+```
+
+The execution report includes each scenario's actual answer, cited sources, refusal reason, and pass/fail results linked to acceptance criteria. Unsupported scenario IDs and stories without the ShopBot profile are rejected.
 
 ## Testing vocabulary (ISTQB)
 
@@ -164,6 +180,7 @@ The code and reports use standard ISTQB terms:
 - [x] **Step 4:** Chaos Lab: reproducible bug injection, test detection and mutation-score dashboard
 - [x] **Step 5:** AI autoheal: blind diagnosis, guarded source-only patches and re-validation
 - [x] **Step 6:** AI for testing: test generation from user stories and AI failure triage
+- [x] **Step 7:** Safe test execution: reviewed, allowlisted ShopBot scenarios with criterion-level reports
 
 ## About
 

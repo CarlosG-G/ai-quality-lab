@@ -7,6 +7,7 @@ import {
   triageFailure,
 } from './ai-testing.ts';
 import { createAiTestingGenerator } from './ai-testing-client.ts';
+import { executeGeneratedTestPlan } from './ai-test-executor.ts';
 
 function readJson(path: string): unknown {
   try {
@@ -17,10 +18,34 @@ function readJson(path: string): unknown {
 }
 
 async function main(): Promise<void> {
-  const [operation, inputPath] = process.argv.slice(2);
+  const [operation, ...args] = process.argv.slice(2);
+  if (operation === 'execute') {
+    const [storyPath, planPath, ...flags] = args;
+    if (!storyPath || !planPath || flags.some((flag) => flag !== '--approve')) {
+      throw new Error(
+        'Usage: npm run ai:testing -- execute <story.json> <plan.json> --approve\n' +
+        'Review the generated plan before approving execution.',
+      );
+    }
+    const story = parseUserStory(readJson(storyPath));
+    const savedOutput = readJson(planPath);
+    const planValue = typeof savedOutput === 'object' && savedOutput !== null && 'result' in savedOutput
+      ? savedOutput.result
+      : savedOutput;
+    const report = await executeGeneratedTestPlan(story, planValue, { approved: flags.includes('--approve') });
+    console.log(JSON.stringify(report, null, 2));
+    if (report.summary.failedCases > 0) {
+      process.exitCode = 1;
+      console.error(`Execution failed: ${report.summary.failedCases} test case(s) failed.`);
+    }
+    return;
+  }
+
+  const [inputPath] = args;
   if (!inputPath || (operation !== 'generate' && operation !== 'triage')) {
     throw new Error(
       'Usage: npm run ai:testing -- <generate|triage> <input.json>\n' +
+      '       npm run ai:testing -- execute <story.json> <plan.json> --approve\n' +
       'Examples: npm run ai:testing -- generate examples/user-story.json',
     );
   }

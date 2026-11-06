@@ -1,3 +1,10 @@
+import {
+  isShopBotScenarioId,
+  SHOPBOT_SCENARIO_IDS,
+  SHOPBOT_SCENARIOS,
+  type ShopBotScenarioId,
+} from './ai-test-scenarios.ts';
+
 export type TestCaseType = 'positive' | 'negative' | 'boundary';
 export type FailureCategory = 'product_bug' | 'test_defect' | 'environment' | 'inconclusive';
 
@@ -8,6 +15,7 @@ export interface UserStory {
   iWant: string;
   soThat: string;
   acceptanceCriteria: string[];
+  executionProfile?: 'shopbot';
 }
 
 export interface FailureEvidence {
@@ -32,6 +40,7 @@ export interface GeneratedTestCase {
   given: string;
   when: string;
   then: string;
+  scenarioId?: ShopBotScenarioId;
 }
 
 export interface GeneratedTestPlan {
@@ -76,27 +85,34 @@ const FAILURE_CATEGORIES: FailureCategory[] = [
   'inconclusive',
 ];
 
-export const TEST_PLAN_SCHEMA: Record<string, unknown> = {
-  type: 'OBJECT',
-  properties: {
-    cases: {
-      type: 'ARRAY',
-      items: {
-        type: 'OBJECT',
-        properties: {
-          criterionIndex: { type: 'INTEGER' },
-          type: { type: 'STRING', enum: TEST_CASE_TYPES },
-          title: { type: 'STRING' },
-          given: { type: 'STRING' },
-          when: { type: 'STRING' },
-          then: { type: 'STRING' },
-        },
-        required: ['criterionIndex', 'type', 'title', 'given', 'when', 'then'],
+function testPlanSchema(executable: boolean): Record<string, unknown> {
+  const caseProperties: Record<string, unknown> = {
+    criterionIndex: { type: 'INTEGER' },
+    type: { type: 'STRING', enum: TEST_CASE_TYPES },
+    title: { type: 'STRING' },
+    given: { type: 'STRING' },
+    when: { type: 'STRING' },
+    then: { type: 'STRING' },
+  };
+  const required = ['criterionIndex', 'type', 'title', 'given', 'when', 'then'];
+  if (executable) {
+    caseProperties.scenarioId = { type: 'STRING', enum: SHOPBOT_SCENARIO_IDS };
+    required.push('scenarioId');
+  }
+
+  return {
+    type: 'OBJECT',
+    properties: {
+      cases: {
+        type: 'ARRAY',
+        items: { type: 'OBJECT', properties: caseProperties, required },
       },
     },
-  },
-  required: ['cases'],
-};
+    required: ['cases'],
+  };
+}
+
+export const TEST_PLAN_SCHEMA = testPlanSchema(false);
 
 export const FAILURE_TRIAGE_SCHEMA: Record<string, unknown> = {
   type: 'OBJECT',
@@ -112,11 +128,25 @@ export const FAILURE_TRIAGE_SCHEMA: Record<string, unknown> = {
 
 const TEST_PLAN_INSTRUCTIONS = [
   'You are a senior software test analyst.',
-  'Create concise, executable-independent test cases from the supplied user story.',
+  'Create concise test cases from the supplied user story; do not write test code.',
   'Use only facts in the story and acceptance criteria; do not invent product behavior.',
   'Cover every acceptance criterion at least once. Add a negative or boundary case only when supported by the criteria.',
   'Return JSON matching the supplied schema. criterionIndex is zero-based.',
 ].join(' ');
+
+function testPlanInstructions(story: UserStory): string {
+  if (story.executionProfile !== 'shopbot') return TEST_PLAN_INSTRUCTIONS;
+  const scenarios = SHOPBOT_SCENARIO_IDS
+    .map((id) => `- ${id}: ${SHOPBOT_SCENARIOS[id].description}`)
+    .join('\n');
+  return [
+    TEST_PLAN_INSTRUCTIONS,
+    'This story uses the ShopBot execution profile. Every case must select one supported scenarioId.',
+    'Choose a scenario only when it directly checks the linked acceptance criterion. Never create code, inputs, assertions, or scenario IDs.',
+    'Supported scenario IDs:',
+    scenarios,
+  ].join('\n');
+}
 
 const TRIAGE_INSTRUCTIONS = [
   'You are a software test failure triage assistant.',
@@ -154,7 +184,10 @@ function isOneOf<T extends string>(value: unknown, choices: readonly T[]): value
 
 export function parseUserStory(value: unknown): UserStory {
   const story = record(value, 'User story');
-  return {
+  if (story.executionProfile !== undefined && story.executionProfile !== 'shopbot') {
+    throw new Error('User story executionProfile must be shopbot when provided');
+  }
+  const parsed: UserStory = {
     id: requiredText(story.id, 'User story id', 100),
     title: requiredText(story.title, 'User story title', 200),
     asA: requiredText(story.asA, 'User story asA', 500),
@@ -162,6 +195,8 @@ export function parseUserStory(value: unknown): UserStory {
     soThat: requiredText(story.soThat, 'User story soThat', 500),
     acceptanceCriteria: textList(story.acceptanceCriteria, 'acceptanceCriteria', 20),
   };
+  if (story.executionProfile === 'shopbot') parsed.executionProfile = 'shopbot';
+  return parsed;
 }
 
 export function parseFailureReport(value: unknown): FailureReport {
@@ -214,6 +249,15 @@ export function validateTestPlan(value: unknown, story: UserStory): GeneratedTes
     if (!isOneOf(item.type, TEST_CASE_TYPES)) {
       throw new Error(`cases[${index}].type must be positive, negative, or boundary`);
     }
+    let scenarioId: ShopBotScenarioId | undefined;
+    if (story.executionProfile === 'shopbot') {
+      if (!isShopBotScenarioId(item.scenarioId)) {
+        throw new Error(`cases[${index}].scenarioId must be a supported ShopBot scenario`);
+      }
+      scenarioId = item.scenarioId;
+    } else if (item.scenarioId !== undefined) {
+      throw new Error(`cases[${index}].scenarioId requires the ShopBot execution profile`);
+    }
     covered.add(criterionIndex);
     return {
       criterionIndex,
@@ -222,6 +266,7 @@ export function validateTestPlan(value: unknown, story: UserStory): GeneratedTes
       given: requiredText(item.given, `cases[${index}].given`, 1_000),
       when: requiredText(item.when, `cases[${index}].when`, 1_000),
       then: requiredText(item.then, `cases[${index}].then`, 1_000),
+      ...(scenarioId ? { scenarioId } : {}),
     };
   });
   const missing = story.acceptanceCriteria
@@ -270,9 +315,9 @@ export async function generateTestPlan(
   generator: StructuredGenerator,
 ): Promise<AiTestingResult<GeneratedTestPlan>> {
   const response = await generator.generate({
-    systemInstruction: TEST_PLAN_INSTRUCTIONS,
+    systemInstruction: testPlanInstructions(story),
     userText: JSON.stringify(story),
-    responseSchema: TEST_PLAN_SCHEMA,
+    responseSchema: testPlanSchema(story.executionProfile === 'shopbot'),
   });
   return {
     result: validateTestPlan(parseJsonResponse(response.text, 'Test generation'), story),

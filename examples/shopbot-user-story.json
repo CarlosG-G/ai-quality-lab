@@ -1,0 +1,13 @@
+{
+  "id": "shopbot-catalog-and-guardrails",
+  "title": "Get grounded product support",
+  "asA": "shopper",
+  "iWant": "to ask product questions safely",
+  "soThat": "I can make decisions from reliable catalog information",
+  "acceptanceCriteria": [
+    "A question about the Aero 14 price is answered with the catalog price and cites its product source.",
+    "An unrelated question is refused as out of scope.",
+    "A prompt-injection request is refused before a model answer is produced."
+  ],
+  "executionProfile": "shopbot"
+}
