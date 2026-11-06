@@ -64,18 +64,17 @@ jobs:
       contents: read
       pages: write
       id-token: write
-      copilot-requests: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     env:
       LLM_PROVIDER: mock
-      COPILOT_JUDGE_MODEL: fusion
-      HEAL_PROVIDER: auto
-      COPILOT_HEAL_MODEL: fusion
+      JUDGE_PROVIDER: gemini
+      HEAL_PROVIDER: gemini
+      TESTING_AI_PROVIDER: gemini
       GEMINI_JUDGE_MODELS: gemini-3.8-flash,gemini-3.6-flash
       GEMINI_HEAL_MODELS: gemini-3.8-flash,gemini-3.6-flash
-      GITHUB_TOKEN: ${{ github.token }}
+      GEMINI_TESTING_MODELS: gemini-3.8-flash,gemini-3.6-flash
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
       - uses: actions/checkout@v4
@@ -87,11 +86,21 @@ jobs:
 
       - run: npm ci
 
-      - name: Install Copilot CLI
-        run: npm install -g @github/copilot
+      - name: Verify Gemini API key is configured
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::Add GEMINI_API_KEY in repository Settings > Secrets and variables > Actions."
+            exit 1
+          fi
 
-      - name: Run deterministic evaluation and Copilot-to-Gemini judge
+      - name: Run deterministic evaluation and Gemini judge
         run: npm run eval:judge
+
+      - name: Generate test cases from a user story
+        run: npm run ai:testing -- generate examples/user-story.json
+
+      - name: Triage a test failure with cited evidence
+        run: npm run ai:testing -- triage examples/failure-report.json
 
       - name: Run isolated Chaos Lab campaign
         run: npm run chaos:campaign -- --runs 2 --seed 42 --mode mixed --heal

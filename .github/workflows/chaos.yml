@@ -47,12 +47,10 @@ jobs:
       CHAOS_RUNS: ${{ github.event.inputs.runs || '10' }}
       CHAOS_MODE: ${{ github.event.inputs.mode || 'mixed' }}
       CHAOS_HEAL: ${{ github.event.inputs.heal || 'false' }}
-      HEAL_PROVIDER: auto
-      COPILOT_HEAL_MODEL: fusion
+      HEAL_PROVIDER: gemini
       GEMINI_HEAL_MODELS: gemini-3.8-flash,gemini-3.6-flash
     permissions:
       contents: read
-      copilot-requests: write
     steps:
       - uses: actions/checkout@v4
 
@@ -63,9 +61,15 @@ jobs:
 
       - run: npm ci
 
-      - name: Install Copilot CLI for autoheal
+      - name: Verify Gemini API key is configured for autoheal
         if: env.CHAOS_HEAL == 'true'
-        run: npm install -g @github/copilot
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::Add GEMINI_API_KEY in repository Settings > Secrets and variables > Actions to enable AI autoheal."
+            exit 1
+          fi
 
       - name: Typecheck
         run: npm run typecheck
@@ -73,7 +77,6 @@ jobs:
       - name: Run detection and autoheal campaign
         if: env.CHAOS_HEAL == 'true'
         env:
-          GITHUB_TOKEN: ${{ github.token }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: npm run chaos:campaign -- --seed "$CHAOS_SEED" --runs "$CHAOS_RUNS" --mode "$CHAOS_MODE" --heal
 

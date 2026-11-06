@@ -1,0 +1,12 @@
+{
+  "id": "discount-code",
+  "title": "Apply a discount code",
+  "asA": "shopper with an order in the cart",
+  "iWant": "to apply a valid discount code",
+  "soThat": "I can see the eligible discount before paying",
+  "acceptanceCriteria": [
+    "A valid, unexpired code reduces the eligible subtotal by its configured amount.",
+    "An invalid or expired code leaves the subtotal unchanged and shows an actionable message.",
+    "The same code cannot be applied more than once to one order."
+  ]
+}

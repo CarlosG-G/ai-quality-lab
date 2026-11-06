@@ -2,6 +2,10 @@ import { checkInput, REFUSALS } from './guardrails.ts';
 import { loadKnowledgeBase, Retriever } from './retriever.ts';
 import type { BotAnswer, LlmProvider } from './types.ts';
 
+export function elapsedMs(startedAt: number, finishedAt: number): number {
+  return Math.round(finishedAt - startedAt);
+}
+
 export interface ShopBotOptions {
   provider: LlmProvider;
   retriever?: Retriever;
@@ -32,7 +36,7 @@ export class ShopBot {
     const done = (partial: Omit<BotAnswer, 'provider' | 'latencyMs'>): BotAnswer => ({
       ...partial,
       provider: this.provider.name,
-      latencyMs: Math.round(performance.now() - started),
+      latencyMs: elapsedMs(started, performance.now()),
     });
 
     const blocked = checkInput(question);

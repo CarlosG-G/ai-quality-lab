@@ -32,6 +32,7 @@ if (typeof chaosReport !== 'object' || chaosReport === null || Array.isArray(cha
 const outputDir = resolve(root, 'site');
 mkdirSync(outputDir, { recursive: true });
 cpSync(resolve(root, 'dashboard/index.html'), resolve(outputDir, 'index.html'));
+cpSync(resolve(root, 'dashboard/favicon.svg'), resolve(outputDir, 'favicon.svg'));
 writeFileSync(resolve(outputDir, 'evaluation.json'), `${JSON.stringify(report, null, 2)}\n`);
 writeFileSync(resolve(outputDir, 'chaos-summary.json'), `${JSON.stringify(chaosReport, null, 2)}\n`);
 console.log(`Dashboard built at ${outputDir}`);

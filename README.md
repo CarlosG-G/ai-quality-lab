@@ -98,7 +98,7 @@ The deterministic evaluator defaults to the offline mock. `npm run eval:judge` u
 2. Create a key for a project eligible for Gemini API free-tier access. New keys are authorization keys by default. Free-tier model access and quotas vary; check Google's [current pricing and free-tier table](https://ai.google.dev/gemini-api/docs/pricing).
 3. Copy `.env.example` to `.env` and set `GEMINI_API_KEY=your-key` in `.env`. Do not paste the key into source files, commits, issues or chat. `.env` is ignored by Git; `.env.example` contains no secret.
 4. Run `npm run gemini:check` to confirm the key works, then `npm run eval:judge`. Copilot is tried first; the Gemini key is only used if Copilot fails. Set `JUDGE_PROVIDER=gemini` to test the Gemini judge directly.
-5. To enable fallback on the public GitHub Actions workflow, add the key as a repository secret named `GEMINI_API_KEY` under **Settings → Secrets and variables → Actions**. The secret is not part of the public repository or downloadable files. Copilot CLI must also be allowed for the account or organization; if both providers are unavailable, the dashboard job fails explicitly.
+5. To enable the AI judge and optional autoheal in GitHub Actions, add the key as a repository secret named `GEMINI_API_KEY` under **Settings → Secrets and variables → Actions**. The CI workflows use Gemini directly; they do not depend on a Copilot CLI login. The secret is not part of the public repository or downloadable files.
 
 The Gemini free tier may use submitted content to improve Google's products. This project sends only fictional product and support data, but do not use the free tier with private or confidential data.
 
@@ -125,6 +125,17 @@ GEMINI_API_KEY=your-key
 
 Then run `npm start`. The API key setup above explains how to create and protect the key.
 
+## AI testing assistant
+
+The assistant turns a structured user story into test cases and classifies a supplied test failure. It returns validated JSON; it does not write or execute generated code, close issues, or claim a root cause without cited evidence.
+
+```bash
+npm run ai:testing -- generate examples/user-story.json
+npm run ai:testing -- triage examples/failure-report.json
+```
+
+Set `TESTING_AI_PROVIDER=auto` to try Copilot CLI first and Gemini second, or choose `copilot` or `gemini` explicitly. Add `GEMINI_API_KEY` to `.env` for Gemini. Generated cases must cover every acceptance criterion; triage must reference evidence IDs from the failure report.
+
 ## Testing vocabulary (ISTQB)
 
 The code and reports use standard ISTQB terms:
@@ -139,6 +150,7 @@ The code and reports use standard ISTQB terms:
 | **Mutation testing** | AST mutants; a *killed* mutant is a detected fault, a *survived* mutant shows a test gap |
 | **Mutation score** | Killed mutants ? valid (compiling) mutants |
 | **Failure vs defect** | A failing check is the failure; the seeded code change is the defect |
+| **AI failure triage** | `evals/ai-testing.ts` classifies failures with evidence IDs; a human keeps the final decision |
 | **Confirmation testing** | Re-running the checks after each autoheal repair |
 | **Regression testing** | The full unit + evaluation suite re-run on every repair, not only the failing check |
 
@@ -149,7 +161,7 @@ The code and reports use standard ISTQB terms:
 - [x] **Step 3:** LLM-as-a-judge (Copilot CLI → Gemini fallback) and a published quality dashboard
 - [x] **Step 4:** Chaos Lab: reproducible bug injection, test detection and mutation-score dashboard
 - [x] **Step 5:** AI autoheal: blind diagnosis, guarded source-only patches and re-validation
-- [ ] **Step 6:** AI for testing: test generation from user stories and AI failure triage
+- [x] **Step 6:** AI for testing: test generation from user stories and AI failure triage
 
 ## About
 

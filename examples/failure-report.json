@@ -1,0 +1,22 @@
+{
+  "id": "checkout-discount-184",
+  "testTitle": "applies a valid discount code once",
+  "expected": "The eligible subtotal is reduced by 10 EUR.",
+  "actual": "The eligible subtotal is reduced by 20 EUR after one submission.",
+  "error": "Expected subtotal 90.00 EUR, received 80.00 EUR.",
+  "environment": "CI, Node.js 24, Chromium",
+  "evidence": [
+    {
+      "id": "assertion",
+      "text": "Expected subtotal 90.00 EUR, received 80.00 EUR."
+    },
+    {
+      "id": "request-log",
+      "text": "POST /discount/apply returned 200; response discountAmount=20.00."
+    },
+    {
+      "id": "environment",
+      "text": "The failure reproduced in three consecutive CI runs."
+    }
+  ]
+}

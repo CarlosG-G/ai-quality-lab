@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { ShopBot } from '../../src/bot.ts';
+import { elapsedMs, ShopBot } from '../../src/bot.ts';
 import { checkInput } from '../../src/guardrails.ts';
 import { MockProvider } from '../../src/providers/mock.ts';
 import { loadKnowledgeBase, Retriever, tokenize } from '../../src/retriever.ts';
@@ -34,6 +34,18 @@ test.describe('retriever', () => {
       .join(' ');
     expect(retriever.search(broadQuery, 3)).toHaveLength(3);
   });
+
+  test('normalizes BM25 scores against the full average length for a single-document corpus', () => {
+    const singleDoc = new Retriever([{
+      id: 'one',
+      type: 'product',
+      title: 'Widget',
+      tags: [],
+      text: 'blue',
+    }]);
+
+    expect(singleDoc.search('blue')[0]?.score).toBeCloseTo(Math.log(4 / 3), 4);
+  });
 });
 
 test.describe('guardrails', () => {
@@ -62,6 +74,10 @@ test.describe('guardrails', () => {
 test.describe('ShopBot', () => {
   const bot = new ShopBot({ provider: new MockProvider(), retriever });
 
+  test('calculates elapsed latency from start and finish timestamps', () => {
+    expect(elapsedMs(120, 157)).toBe(37);
+  });
+
   test('answers grounded questions and cites sources', async () => {
     const res = await bot.ask('How much is the Aero 14 laptop?');
     expect(res).toMatchObject({ refused: false, provider: 'mock' });
@@ -75,6 +91,30 @@ test.describe('ShopBot', () => {
     const res = await new ShopBot({ provider: spy, retriever }).ask('What is the capital of France?');
     expect(res).toMatchObject({ refused: true, reason: 'out_of_scope', sources: [] });
     expect(calls).toBe(0);
+  });
+
+  test('refuses low-confidence retrieval below the default relevance threshold', async () => {
+    let calls = 0;
+    const spy: LlmProvider = { name: 'spy', generate: async (_: GenerateInput) => { calls++; return ''; } };
+    const res = await new ShopBot({ provider: spy, retriever }).ask('inch');
+
+    expect(res).toMatchObject({ refused: true, reason: 'out_of_scope', sources: [] });
+    expect(calls).toBe(0);
+  });
+
+  test('passes the default top three retrieved documents to the provider', async () => {
+    let contextLength = 0;
+    const spy: LlmProvider = {
+      name: 'spy',
+      generate: async (input: GenerateInput) => {
+        contextLength = input.context.length;
+        return '';
+      },
+    };
+
+    await new ShopBot({ provider: spy, retriever }).ask('laptop headphones payment');
+
+    expect(contextLength).toBe(3);
   });
 
   test('refuses prompt injection before retrieval', async () => {
