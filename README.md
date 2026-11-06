@@ -113,7 +113,7 @@ Free-tier quotas are small (for example 20 requests per day per model), so one l
 
 Thresholds live in [`evals/thresholds.json`](evals/thresholds.json). Deterministic gates require at least 95% overall case pass rate, 95% top-1 source accuracy, 95% answer-fact rate and 100% refusal accuracy. The local AI judge additionally requires a 90% pass rate; a case passes with correctness, groundedness and relevance of at least 4/5, and helpfulness of at least 3/5. Judge output is an additional signal, not ground truth.
 
-Reports are written to `reports/evaluation.json`, `reports/evaluation.md` and `reports/ai-judge.md`. The static dashboard is built to `site/`; GitHub Actions publishes deterministic results after a successful `main` run and once a week. Workflows never call an AI provider or deploy with user credentials. Pull requests run deterministic checks but do not deploy Pages.
+Reports are written to `reports/evaluation.json`, `reports/evaluation.md` and `reports/ai-judge.md`. The static dashboard is built to `site/`; GitHub Actions publishes deterministic results after a successful `main` run and once a week. For first-time setup, select **GitHub Actions** under **Settings → Pages → Build and deployment**. Workflows never call an AI provider or deploy with user credentials. Pull requests run deterministic checks but do not deploy Pages.
 
 To run the chatbot against Gemini, set these values in `.env`:
 
