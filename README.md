@@ -1,5 +1,7 @@
 # AI Quality Lab
 
+[Live quality dashboard](https://carlosg-g.github.io/ai-quality-lab/)
+
 [![CI](https://github.com/CarlosG-G/ai-quality-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/CarlosG-G/ai-quality-lab/actions/workflows/ci.yml)
 ![Node 24](https://img.shields.io/badge/node-24-339933?logo=node.js&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
