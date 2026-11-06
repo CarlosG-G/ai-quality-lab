@@ -98,7 +98,7 @@ The deterministic evaluator defaults to the offline mock. `npm run eval:judge` u
 2. Create a key for a project eligible for Gemini API free-tier access. New keys are authorization keys by default. Free-tier model access and quotas vary; check Google's [current pricing and free-tier table](https://ai.google.dev/gemini-api/docs/pricing).
 3. Copy `.env.example` to `.env` and set `GEMINI_API_KEY=your-key` in `.env`. Do not paste the key into source files, commits, issues or chat. `.env` is ignored by Git; `.env.example` contains no secret.
 4. Run `npm run gemini:check` to confirm the key works, then `npm run eval:judge`. Copilot is tried first; the Gemini key is only used if Copilot fails. Set `JUDGE_PROVIDER=gemini` to test the Gemini judge directly.
-5. To enable the AI judge and optional autoheal in GitHub Actions, add the key as a repository secret named `GEMINI_API_KEY` under **Settings → Secrets and variables → Actions**. The CI workflows use Gemini directly; they do not depend on a Copilot CLI login. The secret is not part of the public repository or downloadable files.
+5. Keep the key only in your local `.env`. GitHub Actions intentionally does not store or use AI credentials: it runs deterministic checks and detection-only Chaos campaigns. The published dashboard labels live AI judge results as “Not run”; run judge, generation, triage, and autoheal locally with your own key.
 
 The Gemini free tier may use submitted content to improve Google's products. This project sends only fictional product and support data, but do not use the free tier with private or confidential data.
 
@@ -111,9 +111,9 @@ The shared Gemini client ([`src/providers/gemini-client.ts`](src/providers/gemin
 
 Free-tier quotas are small (for example 20 requests per day per model), so one live `eval` plus judge run can use most of a key's daily budget. If a provider fails mid-run, the evaluator stops with exit code 2 and keeps the previous report.
 
-Thresholds live in [`evals/thresholds.json`](evals/thresholds.json). The gates require at least 95% overall case pass rate, 95% top-1 source accuracy, 95% answer-fact rate, 100% refusal accuracy and 90% judge pass rate. A judge case passes with correctness, groundedness and relevance scores of at least 4/5, and helpfulness of at least 3/5. Judge output is an additional signal, not ground truth.
+Thresholds live in [`evals/thresholds.json`](evals/thresholds.json). Deterministic gates require at least 95% overall case pass rate, 95% top-1 source accuracy, 95% answer-fact rate and 100% refusal accuracy. The local AI judge additionally requires a 90% pass rate; a case passes with correctness, groundedness and relevance of at least 4/5, and helpfulness of at least 3/5. Judge output is an additional signal, not ground truth.
 
-Reports are written to `reports/evaluation.json`, `reports/evaluation.md` and `reports/ai-judge.md`. The static dashboard is built to `site/`; GitHub Actions publishes it after a successful `main` run and once a week. Pull requests run deterministic checks but do not call the model or deploy Pages.
+Reports are written to `reports/evaluation.json`, `reports/evaluation.md` and `reports/ai-judge.md`. The static dashboard is built to `site/`; GitHub Actions publishes deterministic results after a successful `main` run and once a week. Workflows never call an AI provider or deploy with user credentials. Pull requests run deterministic checks but do not deploy Pages.
 
 To run the chatbot against Gemini, set these values in `.env`:
 

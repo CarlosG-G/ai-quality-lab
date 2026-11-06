@@ -22,11 +22,6 @@ on:
           - mixed
           - catalog
           - mutation
-      heal:
-        description: Ask Copilot CLI, then Gemini, to repair detected bugs
-        required: true
-        default: false
-        type: boolean
   schedule:
     - cron: '0 10 * * 2'
 
@@ -46,9 +41,6 @@ jobs:
       CHAOS_SEED: ${{ github.event.inputs.seed || '42' }}
       CHAOS_RUNS: ${{ github.event.inputs.runs || '10' }}
       CHAOS_MODE: ${{ github.event.inputs.mode || 'mixed' }}
-      CHAOS_HEAL: ${{ github.event.inputs.heal || 'false' }}
-      HEAL_PROVIDER: gemini
-      GEMINI_HEAL_MODELS: gemini-3.8-flash,gemini-3.6-flash
     permissions:
       contents: read
     steps:
@@ -61,28 +53,14 @@ jobs:
 
       - run: npm ci
 
-      - name: Verify Gemini API key is configured for autoheal
-        if: env.CHAOS_HEAL == 'true'
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: |
-          if [ -z "$GEMINI_API_KEY" ]; then
-            echo "::error::Add GEMINI_API_KEY in repository Settings > Secrets and variables > Actions to enable AI autoheal."
-            exit 1
-          fi
-
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Run detection and autoheal campaign
-        if: env.CHAOS_HEAL == 'true'
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: npm run chaos:campaign -- --seed "$CHAOS_SEED" --runs "$CHAOS_RUNS" --mode "$CHAOS_MODE" --heal
-
       - name: Run detection-only campaign
-        if: env.CHAOS_HEAL != 'true'
         run: npm run chaos:campaign -- --seed "$CHAOS_SEED" --runs "$CHAOS_RUNS" --mode "$CHAOS_MODE"
+
+      - name: Explain local-only autoheal
+        run: echo "::notice::GitHub Actions runs detection only. Use npm run chaos:campaign -- --runs 3 --seed 7 --mode mixed --heal locally with your .env to enable AI autoheal."
 
       - name: Upload Chaos Lab reports
         if: ${{ !cancelled() }}
